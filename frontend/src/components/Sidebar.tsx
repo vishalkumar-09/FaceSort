@@ -10,7 +10,6 @@ import {
   Wand2,
   ScanFace,
   Settings,
-  ChevronDown,
   ArrowRight,
   FolderHeart,
 } from "lucide-react";
@@ -133,29 +132,6 @@ export function Sidebar() {
             <ArrowRight size={13} />
           </Link>
         </div>
-      </div>
-
-      {/* User Profile Footer */}
-      <div className="px-4 py-3.5 border-t border-[#141728] flex items-center justify-between hover:bg-white/[0.03] transition-colors cursor-pointer">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-slate-700">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80"
-              alt="Aditya Verma"
-              className="w-full h-full object-cover"
-            />
-          </div>
-          <div className="min-w-0 text-left">
-            <div className="text-xs font-semibold text-white truncate">
-              Aditya Verma
-            </div>
-            <div className="text-[11px] text-slate-400 truncate">
-              adityo@gmail.com
-            </div>
-          </div>
-        </div>
-        <ChevronDown size={14} className="text-slate-500 flex-shrink-0" />
       </div>
     </aside>
   );

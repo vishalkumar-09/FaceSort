@@ -47,18 +47,6 @@ export function TopBar() {
             {theme === "dark" ? <Sun size={16} strokeWidth={1.9} /> : <Moon size={16} strokeWidth={1.9} />}
           </button>
 
-          {/* Divider */}
-          <div className="divider-v" style={{ height: "20px", margin: "0 4px" }} />
-
-          {/* User Avatar */}
-          <div className="topbar-avatar">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80"
-              alt="Aditya Verma"
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            />
-          </div>
         </div>
       </div>
     </header>
