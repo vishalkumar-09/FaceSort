@@ -100,7 +100,15 @@ export const photosApi = {
 export const organizeApi = {
   preview: () => api.get("/api/organize/preview").then((r) => r.data),
   run: () => api.post("/api/organize/run").then((r) => r.data),
+  openFolder: () =>
+    api.post<{ success: boolean; path: string }>("/api/organize/open-folder").then((r) => r.data),
   downloadUrl: () => `${API_URL}/api/organize/download`,
+  downloadZip: () => {
+    // Direct native browser navigation to attachment endpoint
+    // Guarantees proper filename FaceSort_organized.zip with .zip extension
+    window.location.href = `${API_URL}/api/organize/download`;
+    return true;
+  },
 };
 
 export const unknownApi = {

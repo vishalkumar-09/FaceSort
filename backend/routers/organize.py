@@ -9,7 +9,7 @@ import shutil
 import zipfile
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 from fastapi.responses import StreamingResponse
 import numpy as np
 
@@ -186,12 +186,18 @@ async def download_zip():
     """
     organized_root = settings.ORGANIZED_DIR
 
-    # Check if anything is organized
-    all_files = [f for f in organized_root.rglob("*.*") if f.is_file()]
+    # Check if anything is organized (exclude .gitkeep and hidden files)
+    all_files = [
+        f for f in organized_root.rglob("*")
+        if f.is_file() and not f.name.startswith(".")
+    ]
     if not all_files:
         # Auto-organize
         await run_organization()
-        all_files = [f for f in organized_root.rglob("*.*") if f.is_file()]
+        all_files = [
+            f for f in organized_root.rglob("*")
+            if f.is_file() and not f.name.startswith(".")
+        ]
 
     if not all_files:
         raise HTTPException(400, "No organized photos to download.")
@@ -202,9 +208,43 @@ async def download_zip():
             arcname = file_path.relative_to(settings.ORGANIZED_DIR)
             zf.write(file_path, arcname)
 
-    buf.seek(0)
-    return StreamingResponse(
-        buf,
+    content = buf.getvalue()
+    buf.close()
+
+    return Response(
+        content=content,
         media_type="application/zip",
-        headers={"Content-Disposition": 'attachment; filename="FaceSort_organized.zip"'},
+        headers={
+            "Content-Disposition": 'attachment; filename="FaceSort_organized.zip"',
+            "Content-Length": str(len(content)),
+        },
     )
+
+
+# ─────────────────────────────────────────────
+# POST /api/organize/open-folder
+# ─────────────────────────────────────────────
+@router.post("/open-folder")
+async def open_organized_folder():
+    """
+    Open the organized_photos folder directly in Windows File Explorer / OS file manager.
+    """
+    import os
+    import sys
+    import subprocess
+
+    organized_root = settings.ORGANIZED_DIR
+    organized_root.mkdir(parents=True, exist_ok=True)
+    folder_str = str(organized_root.resolve())
+
+    try:
+        if os.name == "nt":
+            os.startfile(folder_str)
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", folder_str])
+        else:
+            subprocess.Popen(["xdg-open", folder_str])
+        return {"success": True, "path": folder_str}
+    except Exception as e:
+        raise HTTPException(500, f"Could not open folder in File Explorer: {e}")
+

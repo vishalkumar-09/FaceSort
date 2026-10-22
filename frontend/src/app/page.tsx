@@ -26,6 +26,7 @@ import {
   Cpu,
   FolderOpen,
   Download,
+  Loader2,
 } from "lucide-react";
 import {
   statsApi,
@@ -244,6 +245,7 @@ export default function OverviewPage() {
   const [seeding, setSeeding] = useState(false);
   const [lightboxPhoto, setLightboxPhoto] = useState<Photo | null>(null);
   const [folderPreview, setFolderPreview] = useState<{ name: string; count: number }[]>([]);
+  const [downloadingZip, setDownloadingZip] = useState(false);
 
   const loadAllData = useCallback(async () => {
     try {
@@ -282,6 +284,28 @@ export default function OverviewPage() {
       });
     } finally {
       setSeeding(false);
+    }
+  };
+
+  const handleDownloadZip = () => {
+    setDownloadingZip(true);
+    toast.success("Downloading FaceSort_organized.zip...");
+    try {
+      organizeApi.downloadZip();
+    } catch {
+      window.open(organizeApi.downloadUrl(), "_blank");
+    } finally {
+      setTimeout(() => setDownloadingZip(false), 1500);
+    }
+  };
+
+  const handleOpenFolder = async () => {
+    const toastId = toast.loading("Opening folder in File Explorer...");
+    try {
+      await organizeApi.openFolder();
+      toast.success("Opened organized folder in File Explorer!", { id: toastId });
+    } catch {
+      toast.info("Photos organized under backend/storage/organized/", { id: toastId });
     }
   };
 
@@ -894,13 +918,36 @@ export default function OverviewPage() {
                 ))}
               </div>
 
-              <Link
-                href="/organize"
-                className="w-full py-2 px-3 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 shadow-xs transition-all flex items-center justify-center gap-1.5"
-              >
-                <Download size={13} />
-                <span>Download Organized ZIP</span>
-              </Link>
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={handleOpenFolder}
+                  className="flex-1 py-2 px-3 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  title="Open organized folder in Windows File Explorer"
+                >
+                  <FolderOpen size={13} className="text-indigo-600 dark:text-indigo-400" />
+                  <span>Open Folder</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadZip}
+                  disabled={downloadingZip}
+                  className="flex-1 py-2 px-3 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  title="Download organized ZIP archive (.zip)"
+                >
+                  {downloadingZip ? (
+                    <>
+                      <Loader2 size={13} className="animate-spin" />
+                      <span>Downloading...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download size={13} />
+                      <span>Download .ZIP</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           )}
         </div>

@@ -95,6 +95,7 @@ export default function OrganizePage() {
   const [existingPhotosCount, setExistingPhotosCount] = useState<number>(0);
   const [registeredPeopleCount, setRegisteredPeopleCount] = useState<number>(0);
   const [downloadUrl, setDownloadUrl] = useState("");
+  const [downloading, setDownloading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const fetchStats = useCallback(async () => {
@@ -202,6 +203,28 @@ export default function OrganizePage() {
     setDownloadUrl("");
     setUploadProgress(0);
     fetchStats();
+  };
+
+  const handleDownloadZip = () => {
+    setDownloading(true);
+    toast.success("Downloading FaceSort_organized.zip...");
+    try {
+      organizeApi.downloadZip();
+    } catch {
+      window.open(organizeApi.downloadUrl(), "_blank");
+    } finally {
+      setTimeout(() => setDownloading(false), 1500);
+    }
+  };
+
+  const handleOpenFolder = async () => {
+    const toastId = toast.loading("Opening folder in File Explorer...");
+    try {
+      await organizeApi.openFolder();
+      toast.success("Opened organized folder in File Explorer!", { id: toastId });
+    } catch {
+      toast.info("Photos organized under backend/storage/organized/", { id: toastId });
+    }
   };
 
   const totalFaces = uploadResults.reduce(
@@ -595,19 +618,37 @@ export default function OrganizePage() {
             {/* Action buttons */}
             <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <button
-                className="px-5 py-3 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition-colors text-center"
+                className="px-5 py-3 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-center cursor-pointer"
                 onClick={reset}
               >
                 Organize More Photos
               </button>
-              <a
-                href={downloadUrl}
-                download="FaceSort_organized.zip"
-                className="flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 shadow-md shadow-indigo-600/30 transition-all flex items-center justify-center gap-2 text-center"
+              <button
+                type="button"
+                onClick={handleOpenFolder}
+                className="px-5 py-3 rounded-xl text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 shadow-xs transition-all flex items-center justify-center gap-2 text-center cursor-pointer"
               >
-                <Download size={16} />
-                <span>Download Organized ZIP Archive</span>
-              </a>
+                <FolderOpen size={16} className="text-indigo-600 dark:text-indigo-400" />
+                <span>Open Folder in Explorer</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleDownloadZip}
+                disabled={downloading}
+                className="flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 shadow-md shadow-indigo-600/30 transition-all flex items-center justify-center gap-2 text-center cursor-pointer"
+              >
+                {downloading ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Preparing ZIP Archive...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download size={16} />
+                    <span>Download ZIP Archive (.zip)</span>
+                  </>
+                )}
+              </button>
             </div>
           </motion.div>
         )}
