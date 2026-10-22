@@ -57,6 +57,36 @@ export interface UnknownFace {
   assigned_to: string | null;
 }
 
+export interface PhotoFilterParams {
+  person_id?: string;
+  person_ids?: string[];
+  match_mode?: "and" | "or";
+  q?: string;
+  face_count_type?: "solo" | "duo" | "group" | "any";
+  tag_status?: "all" | "identified" | "has_unknown" | "pure_unknown";
+  sort?: "newest" | "oldest" | "most_faces";
+  page?: number;
+  per_page?: number;
+}
+
+export interface SmartSuggestResult {
+  people: {
+    id: string;
+    name: string;
+    count: number;
+    face_image?: string | null;
+  }[];
+  presets: {
+    title: string;
+    person_ids?: string[];
+    match_mode?: "and" | "or";
+    face_count_type?: "solo" | "duo" | "group";
+    tag_status?: "identified" | "has_unknown" | "pure_unknown";
+    count: number;
+  }[];
+  total_photos: number;
+}
+
 export interface Stats {
   people: number;
   photos: number;
@@ -77,11 +107,22 @@ export const peopleApi = {
 };
 
 export const photosApi = {
-  list: (params?: { person_id?: string; page?: number; per_page?: number }) =>
-    api.get<{ total: number; page: number; per_page: number; photos: Photo[] }>(
-      "/api/photos",
-      { params }
-    ).then((r) => r.data),
+  list: (params?: PhotoFilterParams) =>
+    api
+      .get<{ total: number; page: number; per_page: number; photos: Photo[] }>(
+        "/api/photos",
+        {
+          params,
+          paramsSerializer: {
+            indexes: null,
+          },
+        }
+      )
+      .then((r) => r.data),
+  suggest: (q: string = "") =>
+    api
+      .get<SmartSuggestResult>("/api/photos/smart-suggest", { params: { q } })
+      .then((r) => r.data),
   get: (id: string) => api.get<Photo>(`/api/photos/${id}`).then((r) => r.data),
   upload: (formData: FormData, onProgress?: (pct: number) => void) =>
     api

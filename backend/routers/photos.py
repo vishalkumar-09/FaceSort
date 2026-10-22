@@ -131,22 +131,172 @@ async def upload_photos(files: list[UploadFile] = File(...)):
 
 
 # ─────────────────────────────────────────────
+# GET /api/photos/smart-suggest
+# ─────────────────────────────────────────────
+@router.get("/smart-suggest")
+async def smart_suggest(q: str = Query("", min_length=0)):
+    """
+    Provide instant suggestions for people, smart presets, and photo matches.
+    """
+    people = db.get("people", {})
+    photos = db.get("photos", [])
+    q_lower = q.strip().lower()
+
+    # 1. Matching people
+    matched_people = [
+        {
+            "id": pid,
+            "name": p["name"],
+            "count": len(p.get("photo_ids", [])),
+            "face_image": p.get("reference_photos", [None])[0] if p.get("reference_photos") else None,
+        }
+        for pid, p in people.items()
+        if not q_lower or q_lower in p["name"].lower()
+    ]
+
+    # 2. Preset suggestions
+    presets = []
+    people_list = [p for p in people.values() if len(p.get("photo_ids", [])) > 0]
+    for i in range(len(people_list)):
+        for j in range(i + 1, min(len(people_list), i + 3)):
+            p1, p2 = people_list[i], people_list[j]
+            together_count = len([
+                p
+                for p in photos
+                if any(f.get("person_id") == p1["id"] for f in p.get("faces", []))
+                and any(f.get("person_id") == p2["id"] for f in p.get("faces", []))
+            ])
+            if together_count > 0:
+                presets.append({
+                    "title": f"{p1['name']} & {p2['name']} together",
+                    "person_ids": [p1["id"], p2["id"]],
+                    "match_mode": "and",
+                    "count": together_count,
+                })
+
+    # Solo portraits count
+    solo_count = len([p for p in photos if len(p.get("faces", [])) == 1])
+    if solo_count > 0:
+        presets.append({
+            "title": "Solo Portraits",
+            "face_count_type": "solo",
+            "count": solo_count,
+        })
+
+    # Duo / Couples count
+    duo_count = len([p for p in photos if len(p.get("faces", [])) == 2])
+    if duo_count > 0:
+        presets.append({
+            "title": "Duo / Couples (2 faces)",
+            "face_count_type": "duo",
+            "count": duo_count,
+        })
+
+    # Group photos count
+    group_count = len([p for p in photos if len(p.get("faces", [])) >= 3])
+    if group_count > 0:
+        presets.append({
+            "title": "Group Photos (3+ faces)",
+            "face_count_type": "group",
+            "count": group_count,
+        })
+
+    # Unknown faces needing tagging
+    unknown_count = len([p for p in photos if any(not f.get("person_id") for f in p.get("faces", []))])
+    if unknown_count > 0:
+        presets.append({
+            "title": "Needs Tagging (Unknown faces)",
+            "tag_status": "has_unknown",
+            "count": unknown_count,
+        })
+
+    return {
+        "people": matched_people[:6],
+        "presets": presets,
+        "total_photos": len(photos),
+    }
+
+
+# ─────────────────────────────────────────────
 # GET /api/photos
 # ─────────────────────────────────────────────
 @router.get("")
 async def list_photos(
     person_id: str | None = Query(None),
+    person_ids: list[str] | None = Query(None),
+    match_mode: str = Query("and"),
+    q: str | None = Query(None),
+    face_count_type: str | None = Query(None),
+    tag_status: str | None = Query(None),
+    sort: str = Query("newest"),
     page: int = Query(1, ge=1),
     per_page: int = Query(30, ge=1, le=100),
 ):
     photos = db.get("photos", [])
 
-    if person_id:
-        photos = [
-            p
-            for p in photos
-            if any(f.get("person_id") == person_id for f in p.get("faces", []))
-        ]
+    # Consolidate target person IDs
+    target_pids: list[str] = []
+    if person_ids:
+        target_pids.extend([pid for pid in person_ids if pid])
+    if person_id and person_id not in target_pids:
+        target_pids.append(person_id)
+
+    # 1. Multi-Person filter with AND / OR
+    if target_pids:
+        if match_mode == "and":
+            photos = [
+                p
+                for p in photos
+                if all(
+                    any(f.get("person_id") == pid for f in p.get("faces", []))
+                    for pid in target_pids
+                )
+            ]
+        else:
+            photos = [
+                p
+                for p in photos
+                if any(
+                    any(f.get("person_id") == pid for f in p.get("faces", []))
+                    for pid in target_pids
+                )
+            ]
+
+    # 2. Face count filter
+    if face_count_type == "solo":
+        photos = [p for p in photos if len(p.get("faces", [])) == 1]
+    elif face_count_type == "duo":
+        photos = [p for p in photos if len(p.get("faces", [])) == 2]
+    elif face_count_type == "group":
+        photos = [p for p in photos if len(p.get("faces", [])) >= 3]
+
+    # 3. Tag status filter
+    if tag_status == "identified":
+        photos = [p for p in photos if any(f.get("person_id") for f in p.get("faces", []))]
+    elif tag_status == "has_unknown":
+        photos = [p for p in photos if any(not f.get("person_id") for f in p.get("faces", []))]
+    elif tag_status == "pure_unknown":
+        photos = [p for p in photos if all(not f.get("person_id") for f in p.get("faces", []))]
+
+    # 4. Text search query
+    if q and q.strip():
+        tokens = q.strip().lower().split()
+        matched = []
+        for p in photos:
+            name_text = p.get("original_name", "").lower()
+            faces_text = " ".join([f.get("person_name") or "" for f in p.get("faces", [])]).lower()
+            combined = f"{name_text} {faces_text}"
+            if all(t in combined for t in tokens):
+                matched.append(p)
+        photos = matched
+
+    # 5. Sorting
+    if sort == "oldest":
+        photos = sorted(photos, key=lambda p: p.get("uploaded_at", ""))
+    elif sort == "most_faces":
+        photos = sorted(photos, key=lambda p: len(p.get("faces", [])), reverse=True)
+    else:  # newest
+        photos = sorted(photos, key=lambda p: p.get("uploaded_at", ""), reverse=True)
 
     total = len(photos)
     start = (page - 1) * per_page
