@@ -21,7 +21,7 @@ settings.ORGANIZED_DIR.mkdir(parents=True, exist_ok=True)
 settings.FACES_DIR.mkdir(parents=True, exist_ok=True)
 settings.MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
-from routers import people, photos, organize, unknown, demo
+from routers import people, photos, organize, unknown, demo, share
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -56,6 +56,7 @@ app.include_router(photos.router, prefix="/api/photos", tags=["Photos"])
 app.include_router(organize.router, prefix="/api/organize", tags=["Organize"])
 app.include_router(unknown.router, prefix="/api/unknown", tags=["Unknown Faces"])
 app.include_router(demo.router, prefix="/api/demo", tags=["Demo"])
+app.include_router(share.router, prefix="/api/share", tags=["Share"])
 
 
 @app.get("/api/health")

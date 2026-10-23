@@ -2,12 +2,13 @@
 
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Users, Plus, Pencil, Trash2, Upload, X, Check } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Upload, X, Check, QrCode } from "lucide-react";
 import { peopleApi, faceImgUrl, photoImgUrl } from "@/lib/api";
 import type { Person } from "@/lib/api";
 import { pluralize } from "@/lib/utils";
 import { toast } from "sonner";
 import Link from "next/link";
+import { ShareModal } from "@/components/ShareModal";
 
 function AddPersonModal({
   onClose,
@@ -183,6 +184,7 @@ export default function PeoplePage() {
   const [showAdd, setShowAdd] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
+  const [sharingPerson, setSharingPerson] = useState<Person | null>(null);
 
   const fetch = async () => {
     setLoading(true);
@@ -328,7 +330,7 @@ export default function PeoplePage() {
                     {pluralize(person.photo_count, "photo")}
                   </p>
 
-                  <div className="flex gap-1 mt-3">
+                  <div className="flex gap-1.5 mt-3">
                     <button
                       className="flex-1 btn-secondary py-1.5 text-xs"
                       onClick={() => {
@@ -339,9 +341,17 @@ export default function PeoplePage() {
                       <Pencil size={12} /> Rename
                     </button>
                     <button
-                      className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-red-50 transition-colors"
+                      className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+                      onClick={() => setSharingPerson(person)}
+                      title="Share album via Local Wi-Fi"
+                    >
+                      <QrCode size={13} />
+                    </button>
+                    <button
+                      className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
                       style={{ border: "1px solid var(--border)" }}
                       onClick={() => handleDelete(person.id, person.name)}
+                      title="Delete person"
                     >
                       <Trash2 size={13} className="text-red-500" />
                     </button>
@@ -359,6 +369,15 @@ export default function PeoplePage() {
           <AddPersonModal onClose={() => setShowAdd(false)} onAdded={fetch} />
         )}
       </AnimatePresence>
+
+      {/* Share Modal */}
+      {sharingPerson && (
+        <ShareModal
+          isOpen={true}
+          onClose={() => setSharingPerson(null)}
+          person={sharingPerson}
+        />
+      )}
     </div>
   );
 }

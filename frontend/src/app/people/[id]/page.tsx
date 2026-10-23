@@ -3,15 +3,17 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Camera } from "lucide-react";
+import { ArrowLeft, Camera, QrCode, Wifi } from "lucide-react";
 import { peopleApi, photoImgUrl, faceImgUrl } from "@/lib/api";
 import { pluralize, formatDate } from "@/lib/utils";
+import { ShareModal } from "@/components/ShareModal";
 
 export default function PersonDetailPage() {
   const params = useParams();
   const id = params.id as string;
   const [person, setPerson] = useState<{ name: string; photos: { filename: string; original_name: string; uploaded_at: string }[]; reference_photos: string[] } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -77,18 +79,41 @@ export default function PersonDetailPage() {
             </div>
           )}
         </div>
-        <div>
+        <div className="flex-1">
           <h1
-            className="text-2xl font-semibold"
-            style={{ color: "var(--text-primary)" }}
+            className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white"
           >
             {person.name}
           </h1>
-          <p className="text-sm mt-0.5" style={{ color: "var(--text-tertiary)" }}>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
             {pluralize(person.photos?.length ?? 0, "photo")}
           </p>
         </div>
+
+        {person.photos && person.photos.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowShareModal(true)}
+            className="px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 shadow-md shadow-indigo-600/30 transition-all flex items-center gap-2 cursor-pointer shrink-0"
+            title="Share this album over Local Wi-Fi"
+          >
+            <QrCode size={16} />
+            <span>Share Album (Local Wi-Fi)</span>
+          </button>
+        )}
       </div>
+
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        person={{
+          id,
+          name: person.name,
+          thumbnail: person.reference_photos?.[0],
+          photo_count: person.photos?.length ?? 0,
+        }}
+      />
 
       {(!person.photos || person.photos.length === 0) ? (
         <div className="text-center py-16">

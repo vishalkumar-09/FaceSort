@@ -4,21 +4,30 @@
 
 import axios from "axios";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+export const getApiUrl = () => {
+  if (typeof window !== "undefined") {
+    // When opened from another phone/device on Wi-Fi (e.g. 192.168.x.x:3000), point to that machine's port 8000
+    const host = window.location.hostname || "localhost";
+    return `${window.location.protocol}//${host}:8000`;
+  }
+  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+};
 
 export const api = axios.create({
-  baseURL: API_URL,
   timeout: 120_000,
 });
 
-export const IMG_BASE = `${API_URL}/static`;
+api.interceptors.request.use((config) => {
+  config.baseURL = getApiUrl();
+  return config;
+});
 
 export function faceImgUrl(filename: string) {
-  return `${IMG_BASE}/faces/${filename}`;
+  return `${getApiUrl()}/static/faces/${filename}`;
 }
 
 export function photoImgUrl(filename: string) {
-  return `${IMG_BASE}/uploads/${filename}`;
+  return `${getApiUrl()}/static/uploads/${filename}`;
 }
 
 // ─── Types ────────────────────────────────────────────────────
@@ -143,11 +152,11 @@ export const organizeApi = {
   run: () => api.post("/api/organize/run").then((r) => r.data),
   openFolder: () =>
     api.post<{ success: boolean; path: string }>("/api/organize/open-folder").then((r) => r.data),
-  downloadUrl: () => `${API_URL}/api/organize/download`,
+  downloadUrl: () => `${getApiUrl()}/api/organize/download`,
   downloadZip: () => {
     // Direct native browser navigation to attachment endpoint
     // Guarantees proper filename FaceSort_organized.zip with .zip extension
-    window.location.href = `${API_URL}/api/organize/download`;
+    window.location.href = `${getApiUrl()}/api/organize/download`;
     return true;
   },
 };
@@ -167,5 +176,51 @@ export const statsApi = {
 export const demoApi = {
   seed: () => api.post<{ status: string; message: string; people_count: number; photos_count: number; unknown_faces_count: number }>("/api/demo/seed").then((r) => r.data),
   reset: () => api.post<{ status: string; message: string }>("/api/demo/reset").then((r) => r.data),
+};
+
+export interface ShareSession {
+  share_id: string;
+  code: string;
+  person_id: string;
+  person_name: string;
+  person_thumbnail?: string | null;
+  allow_download: boolean;
+  created_at: string;
+  expires_at?: string | null;
+  photo_count: number;
+  share_url: string;
+  lan_ip: string;
+}
+
+export interface SharedAlbumData {
+  share_id: string;
+  code?: string;
+  person_id: string;
+  person_name: string;
+  person_thumbnail?: string | null;
+  allow_download: boolean;
+  expires_at?: string | null;
+  photo_count: number;
+  photos: {
+    id: string;
+    filename: string;
+    original_name: string;
+    uploaded_at: string;
+    face_count: number;
+  }[];
+}
+
+export const shareApi = {
+  getNetworkInfo: () =>
+    api
+      .get<{ lan_ip: string; frontend_port: number; backend_port: number; base_url: string }>(
+        "/api/share/network-info"
+      )
+      .then((r) => r.data),
+  create: (body: { person_id: string; allow_download?: boolean; expires_in_hours?: number }) =>
+    api.post<ShareSession>("/api/share/create", body).then((r) => r.data),
+  getShared: (tokenOrCode: string) =>
+    api.get<SharedAlbumData>(`/api/share/${tokenOrCode}`).then((r) => r.data),
+  downloadZipUrl: (tokenOrCode: string) => `${getApiUrl()}/api/share/${tokenOrCode}/download`,
 };
 

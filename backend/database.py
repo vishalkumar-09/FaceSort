@@ -52,7 +52,7 @@ from config import settings
 
 _lock = threading.Lock()
 
-_default: dict = {"people": {}, "photos": [], "unknown_faces": []}
+_default: dict = {"people": {}, "photos": [], "unknown_faces": [], "shares": {}}
 
 db: dict = {}
 
@@ -67,6 +67,7 @@ def init_db() -> None:
     else:
         db.update(_default)
         _flush()
+    db.setdefault("shares", {})
 
 
 def _flush() -> None:

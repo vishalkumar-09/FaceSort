@@ -12,6 +12,7 @@ import {
   Settings,
   ArrowRight,
   FolderHeart,
+  Wifi,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { statsApi } from "@/lib/api";
@@ -37,6 +38,7 @@ export function Sidebar() {
       icon: ScanFace,
       badge: unknownCount && unknownCount > 0 ? String(unknownCount) : undefined,
     },
+    { href: "/share", label: "Wi-Fi Share", icon: Wifi },
     { href: "/settings", label: "Settings", icon: Settings },
   ];
 
