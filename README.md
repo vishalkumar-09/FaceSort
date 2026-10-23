@@ -26,11 +26,11 @@
 | Feature | Description |
 | :--- | :--- |
 | 🧠 **Offline Neural Face Recognition** | Powered by OpenCV's **YuNet** (deep neural face detection) and **SFace** (128-dimensional embedding model). Zero cloud calls, zero external API costs. |
-| 📱 **Local Wi-Fi QR & PIN Sharing** | Share personalized photo albums with guests on the same Wi-Fi router via a dynamic **QR Code** or memorable **6-digit PIN** (e.g. `529-293`). No internet connection needed! |
-| 🖥️ **Native Desktop Application** | Runs as a sleek, standalone desktop app using **Microsoft Edge WebView2** (`desktop.py`). Zero browser URL bar, minimal memory footprint. |
+| 📱 **Local Wi-Fi QR & PIN Sharing** | Share personalized photo albums with guests on the same Wi-Fi router via a dynamic **QR Code** or memorable **6-digit PIN** (e.g. `529-293`). No internet connection needed! Guests can stream galleries and 1-tap download full ZIP archives. |
+| 🖥️ **Native Desktop Application** | Runs as a sleek, standalone desktop app using **Microsoft Edge WebView2** (`desktop.py`). Zero browser URL bar, native file download integration (`ALLOW_DOWNLOADS`), and minimal memory footprint. |
 | 📦 **Windows `.exe` Setup Wizard** | Download and install via a standard Windows installer (`FaceSort-Setup-v1.0.0.exe`) with desktop shortcuts, Start Menu entry, and full uninstaller. |
 | 🔍 **Smart Search & Filters** | Search across your entire photo library by person name, face similarity, upload dates, tags, and cluster groups. |
-| 📁 **Automated Folder Organization** | One-click physical sorting into clean person-named folders (`/storage/organized/Name/`) with instant single or bulk ZIP export. |
+| 📁 **Automated Folder Organization** | One-click physical sorting into clean person-named folders (`/storage/organized/Name/`) with instant single or bulk ZIP export (`FaceSort_organized.zip`) via native Windows Save dialog. |
 | ❓ **Unknown Face Identification** | Unrecognized faces are grouped into an intuitive review queue so you can label or assign them in seconds. |
 | 🌙 **Modern Glassmorphic Dark UI** | Tailored dark & light modes built with **Next.js 16**, **Tailwind CSS v4**, **Framer Motion**, and **Lucide React**. |
 
@@ -77,6 +77,12 @@ flowchart LR
 2. Click **"Share Album (Local Wi-Fi)"**.
 3. Have your friend **scan the QR code** with their phone camera, or go to `http://<your-ip>:8000/share` and type the **6-digit PIN**.
 4. The guest phone opens a lightweight, mobile-optimized gallery where they can view photos, tap into a swipeable full-screen lightbox, save individual pictures, or tap **"Download All (.ZIP)"**.
+
+> [!TIP]
+> **Phone Connection Troubleshooting:**
+> - **Same Wi-Fi Network**: Both the host PC and guest smartphones must be connected to the exact same Wi-Fi router (or connect the phone directly to the Windows PC's Mobile Hotspot).
+> - **Windows Firewall**: If the phone hangs on *"Connecting to local FaceSort library..."*, ensure Windows Firewall allows inbound connections for Python / Port `8000`.
+> - **Router AP Isolation**: Ensure "Client Isolation" or "AP Isolation" is disabled in router settings if devices cannot communicate peer-to-peer.
 
 ---
 
@@ -138,13 +144,16 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 FaceSort includes an automated master build pipeline that turns the entire project into a redistributable Windows setup wizard:
 
 ```powershell
-# From the project root:
+# From the project root (re-compiles frontend & packages installer):
 python build_installer.py
+
+# To force re-compiling the standalone PyInstaller distribution:
+python build_installer.py --rebuild
 ```
 
 ### What this script does automatically:
-1. Runs `npm run build` in `frontend/` to generate the latest static web assets.
-2. Runs `PyInstaller FaceSort.spec` to assemble the Python engine, AI models, and Edge WebView2 into `dist/FaceSort/`.
+1. Compiles `npm run build` in `frontend/` to generate the latest Next.js static web assets into `frontend/out/`.
+2. Assembles the standalone Python runtime, FastAPI server, ONNX models, and Edge WebView2 into `dist/FaceSort/`.
 3. Runs **Inno Setup Compiler** (`ISCC.exe`) to create the ultra-compressed `FaceSort-Setup-v1.0.0.exe` in `installer_output/`.
 
 ---

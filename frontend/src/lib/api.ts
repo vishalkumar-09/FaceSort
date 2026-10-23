@@ -161,9 +161,24 @@ export const organizeApi = {
     api.post<{ success: boolean; path: string }>("/api/organize/open-folder").then((r) => r.data),
   downloadUrl: () => `${getApiUrl()}/api/organize/download`,
   downloadZip: () => {
-    // Direct native browser navigation to attachment endpoint
-    // Guarantees proper filename FaceSort_organized.zip with .zip extension
-    window.location.href = `${getApiUrl()}/api/organize/download`;
+    const url = typeof window !== "undefined" ? `${window.location.origin}/api/organize/download` : `${getApiUrl()}/api/organize/download`;
+    try {
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "FaceSort_organized.zip");
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        try {
+          document.body.removeChild(link);
+        } catch {
+          // ignore
+        }
+      }, 500);
+    } catch {
+      window.location.href = url;
+    }
     return true;
   },
 };

@@ -25,6 +25,10 @@ import uvicorn
 import webview
 from main import app
 
+# Enable native file downloads in Edge WebView2 (SaveFileDialog)
+webview.settings["ALLOW_DOWNLOADS"] = True
+webview.settings["OPEN_EXTERNAL_LINKS_IN_BROWSER"] = True
+
 
 def is_port_in_use(port: int) -> bool:
     """Check if the given port is already bound."""

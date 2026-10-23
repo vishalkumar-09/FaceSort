@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-const isExport = process.env.NEXT_EXPORT === "true";
+const isExport = process.env.NODE_ENV === "production" || process.env.NEXT_EXPORT === "true";
 
 const nextConfig: NextConfig = {
   ...(isExport ? { output: "export" } : {}),

@@ -91,7 +91,24 @@ function SharedAlbumContent() {
     if (!data?.allow_download) return;
     setDownloadingZip(true);
     toast.success("Preparing your photos ZIP archive...");
-    window.location.href = shareApi.downloadZipUrl(resolvedToken);
+    const url = shareApi.downloadZipUrl(resolvedToken);
+    try {
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `FaceSort_${data.person_name}_Photos.zip`);
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        try {
+          document.body.removeChild(link);
+        } catch {
+          // ignore
+        }
+      }, 500);
+    } catch {
+      window.location.href = url;
+    }
     setTimeout(() => setDownloadingZip(false), 2000);
   };
 
