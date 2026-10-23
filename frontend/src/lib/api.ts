@@ -6,15 +6,16 @@ import axios from "axios";
 
 export const getApiUrl = () => {
   if (typeof window !== "undefined") {
-    // When opened from another phone/device on Wi-Fi (e.g. 192.168.x.x:3000), point to that machine's port 8000
-    const host = window.location.hostname || "localhost";
-    return `${window.location.protocol}//${host}:8000`;
+    // Both host computer and phones on local Wi-Fi communicate through the same origin port
+    // In dev: http://10.25.154.234:3000 (proxied by Next.js to 8000 internally)
+    // In desktop standalone: http://127.0.0.1:8000 (served directly by FastAPI)
+    return window.location.origin;
   }
-  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  return process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 };
 
 export const api = axios.create({
-  timeout: 120_000,
+  timeout: 15_000,
 });
 
 api.interceptors.request.use((config) => {

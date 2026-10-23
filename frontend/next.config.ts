@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
+const isExport = process.env.NEXT_EXPORT === "true";
+
 const nextConfig: NextConfig = {
-  output: "export",
+  ...(isExport ? { output: "export" } : {}),
   devIndicators: false,
   images: {
     unoptimized: true,
@@ -24,6 +26,19 @@ const nextConfig: NextConfig = {
         pathname: "/**",
       },
     ],
+  },
+  async rewrites() {
+    if (isExport) return [];
+    return [
+      {
+        source: "/api/:path*",
+        destination: "http://127.0.0.1:8000/api/:path*",
+      },
+      {
+        source: "/static/:path*",
+        destination: "http://127.0.0.1:8000/static/:path*",
+      },
+    ];
   },
 };
 

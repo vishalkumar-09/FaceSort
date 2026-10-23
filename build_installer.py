@@ -51,6 +51,7 @@ def main():
     # 1. Build Frontend Static Export if missing or requested
     frontend_out = BASE_DIR / "frontend" / "out"
     if not frontend_out.exists() or not (frontend_out / "index.html").exists():
+        os.environ["NEXT_EXPORT"] = "true"
         run_command("npm run build", cwd=BASE_DIR / "frontend", description="Building Next.js Static Export")
     else:
         print("[*] Found existing static frontend export in frontend/out.")
