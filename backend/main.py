@@ -79,8 +79,15 @@ async def stats():
 
 # ─────────────────────────────────────────────
 # Static Frontend Serving (Standalone Desktop & Production)
-# ─────────────────────────────────────────────
-FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend" / "out"
+def _get_frontend_dir() -> Path:
+    if getattr(sys, "frozen", False):
+        bundle_dir = getattr(sys, "_MEIPASS", Path(sys.executable).parent)
+        frozen_front = Path(bundle_dir) / "frontend" / "out"
+        if frozen_front.exists():
+            return frozen_front
+    return Path(__file__).resolve().parent.parent / "frontend" / "out"
+
+FRONTEND_DIR = _get_frontend_dir()
 
 if FRONTEND_DIR.exists():
     from fastapi.responses import FileResponse, Response
