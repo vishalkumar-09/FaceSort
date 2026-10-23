@@ -12,9 +12,10 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![Next.js](https://img.shields.io/badge/Next.js-16%20(Turbopack)-black?logo=next.js&logoColor=white)](https://nextjs.org)
 [![OpenCV](https://img.shields.io/badge/OpenCV-ONNX%20YuNet%20%2B%20SFace-5C3EE8?logo=opencv&logoColor=white)](https://opencv.org)
+[![GitHub Release](https://img.shields.io/github/v/release/vishalkumar-09/FaceSort?color=emerald&logo=github)](https://github.com/vishalkumar-09/FaceSort/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-[Download Installer](#-windows-installer-quick-start) • [Features](#-key-features) • [Local Wi-Fi Sharing](#-local-wi-fi-qr--pin-share) • [Developer Setup](#-developer-setup) • [Build Installer](#-building-the-installer)
+[⬇️ **Download Installer (.exe)**](https://github.com/vishalkumar-09/FaceSort/releases/download/v1.0.0/FaceSort-Setup-v1.0.0.exe) • [Features](#-key-features) • [Local Wi-Fi Sharing](#-local-wi-fi-qr--pin-share) • [Developer Setup](#-developer-setup) • [Build Installer](#-building-the-installer)
 
 </div>
 
@@ -40,9 +41,9 @@
 You don't need Python, Node.js, or Git installed to use FaceSort on Windows.
 
 1. **Download the Installer**:
-   Grab `FaceSort-Setup-v1.0.0.exe` from the [`installer_output/`](installer_output/) folder or GitHub Releases.
+   👉 [**Download FaceSort-Setup-v1.0.0.exe (255 MB)**](https://github.com/vishalkumar-09/FaceSort/releases/download/v1.0.0/FaceSort-Setup-v1.0.0.exe) from GitHub Releases.
 2. **Run Setup**:
-   Double-click the installer and follow the wizard (install to `%LOCALAPPDATA%\Programs\FaceSort` or `Program Files`).
+   Double-click the downloaded file and follow the standard wizard (installs to `%LOCALAPPDATA%\Programs\FaceSort` or `Program Files`).
 3. **Launch**:
    Double-click the **FaceSort** icon on your Desktop!
 
