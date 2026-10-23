@@ -626,7 +626,7 @@ export default function OverviewPage() {
                 people.map((person) => (
                   <Link
                     key={person.id}
-                    href={`/people/${person.id}`}
+                    href={`/people/view?id=${person.id}`}
                     className="flex flex-col items-center group flex-shrink-0"
                   >
                     <div className="relative mb-1.5">

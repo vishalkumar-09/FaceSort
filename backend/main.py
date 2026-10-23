@@ -75,3 +75,49 @@ async def stats():
         "photos": photos_count,
         "unknown_faces": unknown_count,
     }
+
+
+# ─────────────────────────────────────────────
+# Static Frontend Serving (Standalone Desktop & Production)
+# ─────────────────────────────────────────────
+FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend" / "out"
+
+if FRONTEND_DIR.exists():
+    from fastapi.responses import FileResponse, Response
+
+    # Serve _next static bundles
+    next_static = FRONTEND_DIR / "_next"
+    if next_static.exists():
+        app.mount("/_next", StaticFiles(directory=str(next_static)), name="next_static")
+
+    @app.get("/")
+    async def serve_root():
+        return FileResponse(FRONTEND_DIR / "index.html")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        # Do not intercept API or static media calls
+        if (
+            full_path.startswith("api")
+            or full_path.startswith("static")
+        ):
+            return Response(status_code=404)
+
+        # 1. Exact file match (e.g. favicon.ico, images)
+        file_path = FRONTEND_DIR / full_path
+        if file_path.is_file():
+            return FileResponse(file_path)
+
+        # 2. Direct HTML page match: /people -> people.html, /people/view -> people/view.html
+        html_file = FRONTEND_DIR / f"{full_path}.html"
+        if html_file.is_file():
+            return FileResponse(html_file)
+
+        # 3. Subfolder index: /people/ -> people/index.html
+        sub_index = FRONTEND_DIR / full_path / "index.html"
+        if sub_index.is_file():
+            return FileResponse(sub_index)
+
+        # 4. Fallback to root index.html
+        return FileResponse(FRONTEND_DIR / "index.html")
+

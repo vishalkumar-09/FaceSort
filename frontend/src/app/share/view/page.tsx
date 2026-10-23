@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -10,23 +11,17 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  Share2,
-  Clock,
   Images,
   ArrowDownToLine,
-  Sparkles,
 } from "lucide-react";
 import { shareApi, photoImgUrl, faceImgUrl } from "@/lib/api";
 import type { SharedAlbumData } from "@/lib/api";
-import { formatDate, pluralize } from "@/lib/utils";
 import { toast } from "sonner";
 
-export default function SharedAlbumPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = use(params);
+function SharedAlbumContent() {
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token") || searchParams.get("code") || searchParams.get("id") || "";
+
   const [data, setData] = useState<SharedAlbumData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,9 +29,14 @@ export default function SharedAlbumPage({
   const [downloadingZip, setDownloadingZip] = useState(false);
 
   useEffect(() => {
+    if (!token) {
+      setError("No share token or code provided.");
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     shareApi
-      .getShared(id)
+      .getShared(token)
       .then((res) => {
         setData(res);
         setError(null);
@@ -49,13 +49,13 @@ export default function SharedAlbumPage({
       .finally(() => {
         setLoading(false);
       });
-  }, [id]);
+  }, [token]);
 
   const handleDownloadZip = () => {
     if (!data?.allow_download) return;
     setDownloadingZip(true);
     toast.success("Preparing your photos ZIP archive...");
-    window.location.href = shareApi.downloadZipUrl(id);
+    window.location.href = shareApi.downloadZipUrl(token);
     setTimeout(() => setDownloadingZip(false), 2000);
   };
 
@@ -76,7 +76,6 @@ export default function SharedAlbumPage({
     }
   };
 
-  // Keyboard navigation for lightbox
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (lightboxIndex === null) return;
@@ -270,7 +269,6 @@ export default function SharedAlbumPage({
               </span>
 
               <div className="flex items-center gap-2">
-                {/* Save single photo */}
                 <a
                   href={photoImgUrl(currentPhoto.filename)}
                   download={currentPhoto.original_name}
@@ -280,7 +278,6 @@ export default function SharedAlbumPage({
                   <span>Save Photo</span>
                 </a>
 
-                {/* Close */}
                 <button
                   onClick={() => setLightboxIndex(null)}
                   className="p-2 rounded-full text-white bg-white/20 hover:bg-white/30 backdrop-blur-md transition-colors cursor-pointer"
@@ -299,7 +296,6 @@ export default function SharedAlbumPage({
                 className="max-w-full max-h-[75vh] object-contain select-none"
               />
 
-              {/* Prev / Next buttons */}
               {data.photos.length > 1 && (
                 <>
                   <button
@@ -328,5 +324,13 @@ export default function SharedAlbumPage({
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+export default function SharedAlbumPage() {
+  return (
+    <Suspense fallback={<div className="p-8">Loading shared album...</div>}>
+      <SharedAlbumContent />
+    </Suspense>
   );
 }

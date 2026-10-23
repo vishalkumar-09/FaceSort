@@ -1,17 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Camera, QrCode, Wifi } from "lucide-react";
+import { ArrowLeft, Camera, QrCode } from "lucide-react";
 import { peopleApi, photoImgUrl, faceImgUrl } from "@/lib/api";
-import { pluralize, formatDate } from "@/lib/utils";
+import { pluralize } from "@/lib/utils";
 import { ShareModal } from "@/components/ShareModal";
 
-export default function PersonDetailPage() {
-  const params = useParams();
-  const id = params.id as string;
-  const [person, setPerson] = useState<{ name: string; photos: { filename: string; original_name: string; uploaded_at: string }[]; reference_photos: string[] } | null>(null);
+function PersonDetailContent() {
+  const searchParams = useSearchParams();
+  const id = searchParams.get("id") || "";
+  const [person, setPerson] = useState<{
+    name: string;
+    photos: { filename: string; original_name: string; uploaded_at: string }[];
+    reference_photos: string[];
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [showShareModal, setShowShareModal] = useState(false);
 
@@ -20,7 +24,11 @@ export default function PersonDetailPage() {
       peopleApi.get(id).then((data) => {
         setPerson(data);
         setLoading(false);
+      }).catch(() => {
+        setLoading(false);
       });
+    } else {
+      setLoading(false);
     }
   }, [id]);
 
@@ -37,7 +45,7 @@ export default function PersonDetailPage() {
     );
   }
 
-  if (!person) {
+  if (!person || !id) {
     return (
       <div className="px-8 py-8 text-center">
         <p style={{ color: "var(--text-secondary)" }}>Person not found.</p>
@@ -80,9 +88,7 @@ export default function PersonDetailPage() {
           )}
         </div>
         <div className="flex-1">
-          <h1
-            className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white"
-          >
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
             {person.name}
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
@@ -137,5 +143,13 @@ export default function PersonDetailPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function PersonDetailPage() {
+  return (
+    <Suspense fallback={<div className="p-8">Loading person...</div>}>
+      <PersonDetailContent />
+    </Suspense>
   );
 }

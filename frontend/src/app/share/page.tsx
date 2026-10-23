@@ -19,7 +19,7 @@ export default function ShareCodePage() {
       return;
     }
     setLoading(true);
-    router.push(`/share/${clean}`);
+    router.push(`/share/view?token=${encodeURIComponent(clean)}`);
   };
 
   return (

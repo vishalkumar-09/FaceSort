@@ -273,7 +273,7 @@ export default function PeoplePage() {
               layout
               className="person-card"
             >
-              <Link href={`/people/${person.id}`}>
+              <Link href={`/people/view?id=${person.id}`}>
                 <div className="person-avatar mb-3 rounded-2xl overflow-hidden" style={{ aspectRatio: "1" }}>
                   {person.thumbnail ? (
                     // eslint-disable-next-line @next/next/no-img-element

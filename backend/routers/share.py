@@ -116,7 +116,7 @@ async def create_share_link(body: CreateShareRequest):
     save()
 
     lan_ip = get_lan_ip()
-    share_url = f"http://{lan_ip}:3000/share/{share_id}"
+    share_url = f"http://{lan_ip}:3000/share/view?token={share_id}"
 
     return {
         **share_record,
