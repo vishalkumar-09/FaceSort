@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/ThemeProvider";
-import { Sidebar } from "@/components/Sidebar";
-import { TopBar } from "@/components/TopBar";
+import { AppShell } from "@/components/AppShell";
 
 export const metadata: Metadata = {
   title: "FaceSort — Intelligent Photo Organizer",
@@ -33,15 +32,7 @@ export default function RootLayout({
       </head>
       <body>
         <ThemeProvider>
-          <div className="app-shell">
-            <Sidebar />
-            <div className="app-main">
-              <TopBar />
-              <main style={{ flex: 1 }}>
-                {children}
-              </main>
-            </div>
-          </div>
+          <AppShell>{children}</AppShell>
           <Toaster
             position="bottom-right"
             toastOptions={{

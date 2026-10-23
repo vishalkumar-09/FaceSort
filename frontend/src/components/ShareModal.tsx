@@ -51,11 +51,27 @@ export function ShareModal({ isOpen, onClose, person }: ShareModalProps) {
       })
       .then(async (res) => {
         if (!isMounted) return;
-        setSession(res);
+
+        // Dynamically bind to current port (e.g. 3000 in dev or 8000 in desktop) and active Wi-Fi IP
+        let effectiveHost = res.lan_ip || "192.168.189.234";
+        if (typeof window !== "undefined") {
+          const winHost = window.location.hostname;
+          if (winHost && winHost !== "localhost" && winHost !== "127.0.0.1") {
+            effectiveHost = winHost;
+          }
+        }
+        const effectivePort = typeof window !== "undefined" && window.location.port ? `:${window.location.port}` : ":3000";
+        const effectiveShareUrl = `http://${effectiveHost}${effectivePort}/share/view?token=${res.share_id}`;
+
+        const updatedSession = {
+          ...res,
+          share_url: effectiveShareUrl,
+        };
+        setSession(updatedSession);
 
         // Generate clean SVG QR code
         try {
-          const svg = await QRCode.toString(res.share_url, {
+          const svg = await QRCode.toString(effectiveShareUrl, {
             type: "svg",
             margin: 1,
             width: 220,

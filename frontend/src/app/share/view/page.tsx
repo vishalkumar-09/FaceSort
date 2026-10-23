@@ -20,42 +20,78 @@ import { toast } from "sonner";
 
 function SharedAlbumContent() {
   const searchParams = useSearchParams();
-  const token = searchParams.get("token") || searchParams.get("code") || searchParams.get("id") || "";
-
+  const [resolvedToken, setResolvedToken] = useState<string>("");
   const [data, setData] = useState<SharedAlbumData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [takingLonger, setTakingLonger] = useState(false);
+  const [fetchAttempt, setFetchAttempt] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [downloadingZip, setDownloadingZip] = useState(false);
 
+  // Robust token resolution from searchParams and window.location
   useEffect(() => {
-    if (!token) {
-      setError("No share token or code provided.");
-      setLoading(false);
-      return;
+    const spToken = searchParams?.get("token") || searchParams?.get("code") || searchParams?.get("id");
+    let winToken = "";
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      winToken = sp.get("token") || sp.get("code") || sp.get("id") || "";
     }
+    const finalToken = (spToken || winToken || "").trim();
+    if (finalToken) {
+      setResolvedToken(finalToken);
+    } else {
+      const timer = setTimeout(() => {
+        if (!finalToken) {
+          setError("No share token or code provided.");
+          setLoading(false);
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!resolvedToken) return;
+
     setLoading(true);
+    setError(null);
+    setTakingLonger(false);
+
+    const slowTimer = setTimeout(() => {
+      setTakingLonger(true);
+    }, 2500);
+
+    let isMounted = true;
     shareApi
-      .getShared(token)
+      .getShared(resolvedToken)
       .then((res) => {
+        if (!isMounted) return;
         setData(res);
         setError(null);
       })
-      .catch((err) => {
+      .catch((err: any) => {
+        if (!isMounted) return;
         const msg =
-          err?.response?.data?.detail || "Invalid or expired share link.";
+          err?.response?.data?.detail || err?.message || "Invalid or expired share link.";
         setError(msg);
       })
       .finally(() => {
-        setLoading(false);
+        clearTimeout(slowTimer);
+        if (isMounted) setLoading(false);
       });
-  }, [token]);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(slowTimer);
+    };
+  }, [resolvedToken, fetchAttempt]);
 
   const handleDownloadZip = () => {
     if (!data?.allow_download) return;
     setDownloadingZip(true);
     toast.success("Preparing your photos ZIP archive...");
-    window.location.href = shareApi.downloadZipUrl(token);
+    window.location.href = shareApi.downloadZipUrl(resolvedToken);
     setTimeout(() => setDownloadingZip(false), 2000);
   };
 
@@ -89,18 +125,52 @@ function SharedAlbumContent() {
 
   if (loading) {
     return (
-      <div className="min-h-[80vh] flex flex-col items-center justify-center p-6 space-y-4 text-center">
-        <div className="w-12 h-12 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
-          Connecting to local FaceSort library...
-        </p>
+      <div className="min-h-[85vh] flex flex-col items-center justify-center p-6 space-y-5 text-center">
+        <div className="relative">
+          <div className="w-14 h-14 border-3 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
+          <Wifi className="absolute inset-0 m-auto text-indigo-600 animate-pulse" size={20} />
+        </div>
+        <div className="space-y-1.5 max-w-sm">
+          <p className="text-base font-bold text-slate-900 dark:text-white">
+            Connecting to local FaceSort library...
+          </p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Fetching shared album directly over your local Wi-Fi.
+          </p>
+        </div>
+
+        {takingLonger && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-800/60 max-w-sm space-y-3"
+          >
+            <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
+              Taking longer than usual? Ensure your phone is connected to the same Wi-Fi network as the host computer.
+            </p>
+            <div className="flex items-center justify-center gap-2">
+              <button
+                onClick={() => setFetchAttempt((v) => v + 1)}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 shadow-xs cursor-pointer"
+              >
+                Retry Connection
+              </button>
+              <Link
+                href="/share"
+                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+              >
+                Enter 6-Digit Code
+              </Link>
+            </div>
+          </motion.div>
+        )}
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="min-h-[80vh] flex items-center justify-center p-4">
+      <div className="min-h-[85vh] flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white dark:bg-[#121424] rounded-3xl p-8 border border-slate-200 dark:border-slate-800 shadow-xl text-center space-y-4">
           <div className="w-14 h-14 mx-auto rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-rose-500 flex items-center justify-center">
             <X size={26} />
@@ -111,12 +181,20 @@ function SharedAlbumContent() {
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
             {error || "The requested shared album could not be found."}
           </p>
-          <Link
-            href="/share"
-            className="inline-flex px-5 py-2.5 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 shadow-xs transition-colors"
-          >
-            Enter Access Code
-          </Link>
+          <div className="flex items-center justify-center gap-2 pt-2">
+            <button
+              onClick={() => setFetchAttempt((v) => v + 1)}
+              className="inline-flex px-4 py-2.5 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 shadow-xs transition-colors cursor-pointer"
+            >
+              Try Again
+            </button>
+            <Link
+              href="/share"
+              className="inline-flex px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+            >
+              Enter Access Code
+            </Link>
+          </div>
         </div>
       </div>
     );

@@ -12,7 +12,7 @@ import zipfile
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Query, Response
+from fastapi import APIRouter, HTTPException, Query, Response, Request
 from pydantic import BaseModel
 
 from config import settings
@@ -66,7 +66,7 @@ async def get_network_info():
 # POST /api/share/create
 # ─────────────────────────────────────────────
 @router.post("/create")
-async def create_share_link(body: CreateShareRequest):
+async def create_share_link(body: CreateShareRequest, request: Request):
     """
     Create a secure local share session with a share ID and easy 6-digit code.
     """
@@ -116,7 +116,14 @@ async def create_share_link(body: CreateShareRequest):
     save()
 
     lan_ip = get_lan_ip()
-    share_url = f"http://{lan_ip}:3000/share/view?token={share_id}"
+    host_header = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
+    if ":3000" in host_header:
+        port = 3000
+    elif request.url.port:
+        port = request.url.port
+    else:
+        port = 3000
+    share_url = f"http://{lan_ip}:{port}/share/view?token={share_id}"
 
     return {
         **share_record,

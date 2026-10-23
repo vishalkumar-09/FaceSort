@@ -24,11 +24,17 @@ api.interceptors.request.use((config) => {
 });
 
 export function faceImgUrl(filename: string) {
-  return `${getApiUrl()}/static/faces/${filename}`;
+  if (typeof window !== "undefined") {
+    return `/static/faces/${encodeURIComponent(filename)}`;
+  }
+  return `${getApiUrl()}/static/faces/${encodeURIComponent(filename)}`;
 }
 
 export function photoImgUrl(filename: string) {
-  return `${getApiUrl()}/static/uploads/${filename}`;
+  if (typeof window !== "undefined") {
+    return `/static/uploads/${encodeURIComponent(filename)}`;
+  }
+  return `${getApiUrl()}/static/uploads/${encodeURIComponent(filename)}`;
 }
 
 // ─── Types ────────────────────────────────────────────────────
@@ -220,8 +226,38 @@ export const shareApi = {
       .then((r) => r.data),
   create: (body: { person_id: string; allow_download?: boolean; expires_in_hours?: number }) =>
     api.post<ShareSession>("/api/share/create", body).then((r) => r.data),
-  getShared: (tokenOrCode: string) =>
-    api.get<SharedAlbumData>(`/api/share/${tokenOrCode}`).then((r) => r.data),
-  downloadZipUrl: (tokenOrCode: string) => `${getApiUrl()}/api/share/${tokenOrCode}/download`,
+  getShared: async (tokenOrCode: string): Promise<SharedAlbumData> => {
+    // In browser, use direct native fetch with timeout for max reliability across mobile browsers
+    if (typeof window !== "undefined") {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
+      try {
+        const resp = await fetch(`/api/share/${encodeURIComponent(tokenOrCode.trim())}`, {
+          signal: controller.signal,
+          cache: "no-store",
+          headers: { Accept: "application/json" },
+        });
+        clearTimeout(timer);
+        if (!resp.ok) {
+          const errJson = await resp.json().catch(() => ({}));
+          throw new Error(errJson.detail || `Server returned ${resp.status}`);
+        }
+        return await resp.json();
+      } catch (err: any) {
+        clearTimeout(timer);
+        if (err.name === "AbortError") {
+          throw new Error("Connection timed out. Please check that your phone is on the same Wi-Fi.");
+        }
+        throw err;
+      }
+    }
+    return api.get<SharedAlbumData>(`/api/share/${encodeURIComponent(tokenOrCode.trim())}`).then((r) => r.data);
+  },
+  downloadZipUrl: (tokenOrCode: string) => {
+    if (typeof window !== "undefined") {
+      return `/api/share/${encodeURIComponent(tokenOrCode.trim())}/download`;
+    }
+    return `${getApiUrl()}/api/share/${encodeURIComponent(tokenOrCode.trim())}/download`;
+  },
 };
 

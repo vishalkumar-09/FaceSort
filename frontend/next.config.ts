@@ -5,6 +5,14 @@ const isExport = process.env.NEXT_EXPORT === "true";
 const nextConfig: NextConfig = {
   ...(isExport ? { output: "export" } : {}),
   devIndicators: false,
+  allowedDevOrigins: [
+    "localhost:3000",
+    "127.0.0.1:3000",
+    "192.168.189.234",
+    "192.168.189.234:3000",
+    "10.25.154.234",
+    "10.25.154.234:3000",
+  ],
   images: {
     unoptimized: true,
     remotePatterns: [
