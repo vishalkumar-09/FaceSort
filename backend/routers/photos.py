@@ -52,12 +52,15 @@ async def upload_photos(files: list[UploadFile] = File(...)):
         dest.write_bytes(data)
 
         # Detect faces immediately on upload
+        raw_faces = []
+        scan_error = None
+        img = None
         try:
             img = load_image_from_bytes(data)
             raw_faces = detect_and_encode(img)
         except Exception as e:
-            results.append({"filename": upload.filename, "error": str(e)})
-            continue
+            scan_error = str(e)
+            print(f"[FaceSort] Face detection error on {upload.filename}: {e}")
 
         people = db.get("people", {})
 
@@ -66,7 +69,7 @@ async def upload_photos(files: list[UploadFile] = File(...)):
 
         for raw in raw_faces:
             face_id = uuid.uuid4().hex
-            face_filename = save_face_crop(img, raw["bbox"])
+            face_filename = save_face_crop(img, raw["bbox"]) if img is not None else None
             person_id, confidence = find_best_match(raw["encoding"], people)
             person_name = people[person_id]["name"] if person_id else None
 
@@ -117,15 +120,16 @@ async def upload_photos(files: list[UploadFile] = File(...)):
         db.setdefault("unknown_faces", []).extend(unknown_entries)
         save()
 
-        results.append(
-            {
-                "filename": filename,
-                "original_name": upload.filename,
-                "faces_detected": len(faces_meta),
-                "recognized": len([f for f in faces_meta if f["person_id"]]),
-                "unknown": len(unknown_entries),
-            }
-        )
+        res_item = {
+            "filename": filename,
+            "original_name": upload.filename,
+            "faces_detected": len(faces_meta),
+            "recognized": len([f for f in faces_meta if f["person_id"]]),
+            "unknown": len(unknown_entries),
+        }
+        if scan_error:
+            res_item["error"] = scan_error
+        results.append(res_item)
 
     return {"uploaded": len(results), "results": results}
 

@@ -25,9 +25,14 @@ function AddPersonModal({
 
   const handleFiles = (newFiles: FileList | null) => {
     if (!newFiles) return;
-    const arr = Array.from(newFiles).filter((f) =>
-      ["image/jpeg", "image/png"].includes(f.type)
-    );
+    const arr = Array.from(newFiles).filter((f) => {
+      const type = (f.type || "").toLowerCase();
+      const ext = f.name.slice(f.name.lastIndexOf(".")).toLowerCase();
+      return (
+        ["image/jpeg", "image/png", "image/webp", "image/jpg", "image/bmp"].includes(type) ||
+        [".jpg", ".jpeg", ".png", ".webp", ".bmp"].includes(ext)
+      );
+    });
     setFiles((prev) => [...prev, ...arr]);
     arr.forEach((f) => {
       const reader = new FileReader();

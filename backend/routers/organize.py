@@ -15,7 +15,8 @@ import numpy as np
 
 from config import settings
 from database import db, save
-from face_utils import find_best_match
+from face_utils import find_best_match, cluster_faces
+import numpy as np
 
 router = APIRouter()
 
@@ -54,15 +55,86 @@ def _rematch_unassigned_faces():
         save()
 
 
+def _build_organization_plan(photos: list[dict], people: dict) -> dict[str, list[str]]:
+    """
+    Build folder assignment map for all photos:
+    1. Assigned to registered people -> folder named after the person.
+    2. Remaining unassigned faces -> clustered by similarity (Person 1, Person 2, ...).
+    3. Lone unassigned faces -> 'Unknown'.
+    4. Photos with no detected faces -> 'No Faces'.
+    """
+    folder_map: dict[str, list[str]] = {}
+    unassigned_items: list[dict] = []
+    handled_photos: set[str] = set()
+
+    for photo in photos:
+        filename = photo["filename"]
+        faces = photo.get("faces", [])
+
+        if not faces:
+            folder_map.setdefault("No Faces", []).append(filename)
+            handled_photos.add(filename)
+            continue
+
+        assigned_to_any = False
+        for face in faces:
+            pid = face.get("person_id")
+            if pid and pid in people:
+                person_name = _safe_dirname(people[pid]["name"])
+                if filename not in folder_map.setdefault(person_name, []):
+                    folder_map[person_name].append(filename)
+                assigned_to_any = True
+            elif "encoding" in face:
+                unassigned_items.append({
+                    "photo_filename": filename,
+                    "face_id": face.get("face_id"),
+                    "encoding": face["encoding"],
+                })
+
+        if assigned_to_any:
+            handled_photos.add(filename)
+
+    # Auto-cluster unassigned faces that have not been assigned to a known person
+    if unassigned_items:
+        clusters = cluster_faces(unassigned_items)
+        for c in clusters:
+            items = c["items"]
+            # Cluster with 2+ occurrences gets its own group folder
+            if len(items) >= 2 or not people:
+                cluster_folder = f"Person {c['cluster_id']}"
+                for it in items:
+                    fn = it["photo_filename"]
+                    if fn not in folder_map.setdefault(cluster_folder, []):
+                        folder_map[cluster_folder].append(fn)
+                    handled_photos.add(fn)
+            else:
+                for it in items:
+                    fn = it["photo_filename"]
+                    if fn not in handled_photos:
+                        if fn not in folder_map.setdefault("Unknown", []):
+                            folder_map["Unknown"].append(fn)
+                        handled_photos.add(fn)
+
+    # Any leftover photos not in any folder
+    for photo in photos:
+        fn = photo["filename"]
+        if fn not in handled_photos:
+            if fn not in folder_map.setdefault("Unknown", []):
+                folder_map["Unknown"].append(fn)
+
+    return folder_map
+
+
 # ─────────────────────────────────────────────
 # POST /api/organize/run
 # ─────────────────────────────────────────────
 @router.post("/run")
 async def run_organization():
     """
-    Copy photos into organized_photos/<PersonName>/ folders.
-    A photo with multiple recognized faces is copied into each person's folder.
-    Unknown faces go into Unknown/.
+    Copy photos into organized folders.
+    Recognized people get person-named folders.
+    Unassigned recurring faces get auto-clustered (Person 1, Person 2, ...).
+    Outliers go into Unknown/.
     """
     _rematch_unassigned_faces()
 
@@ -85,43 +157,18 @@ async def run_organization():
         except Exception:
             pass
 
-    folder_map: dict[str, list[str]] = {}
+    folder_map = _build_organization_plan(photos, people)
 
-    for photo in photos:
-        src = settings.UPLOADS_DIR / photo["filename"]
-        if not src.exists():
-            continue
-
-        faces = photo.get("faces", [])
-        assigned_persons: set[str] = set()
-        has_unknown = False
-
-        for face in faces:
-            pid = face.get("person_id")
-            if pid and pid in people:
-                assigned_persons.add(pid)
-            else:
-                has_unknown = True
-
-        # Copy to each recognized person's folder
-        for pid in assigned_persons:
-            person_name = people[pid]["name"]
-            folder_name = _safe_dirname(person_name)
-            dest_dir = organized_root / folder_name
-            dest_dir.mkdir(parents=True, exist_ok=True)
-            dest = dest_dir / photo["filename"]
-            if not dest.exists():
-                shutil.copy2(src, dest)
-            folder_map.setdefault(folder_name, []).append(photo["filename"])
-
-        # Unknown (if no recognized person, or has unidentified face)
-        if has_unknown or not assigned_persons:
-            dest_dir = organized_root / "Unknown"
-            dest_dir.mkdir(parents=True, exist_ok=True)
-            dest = dest_dir / photo["filename"]
-            if not dest.exists():
-                shutil.copy2(src, dest)
-            folder_map.setdefault("Unknown", []).append(photo["filename"])
+    # Copy files into target folders on disk
+    for folder_name, filenames in folder_map.items():
+        dest_dir = organized_root / folder_name
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        for fn in filenames:
+            src = settings.UPLOADS_DIR / fn
+            if src.exists():
+                dest = dest_dir / fn
+                if not dest.exists():
+                    shutil.copy2(src, dest)
 
     return {
         "message": f"Organized {len(photos)} photos into {len(folder_map)} folders.",
@@ -144,26 +191,7 @@ async def preview_organization():
     photos = db.get("photos", [])
     people = db.get("people", {})
 
-    folder_map: dict[str, list[str]] = {}
-
-    for photo in photos:
-        faces = photo.get("faces", [])
-        assigned: set[str] = set()
-        has_unknown = False
-
-        for face in faces:
-            pid = face.get("person_id")
-            if pid and pid in people:
-                assigned.add(pid)
-            else:
-                has_unknown = True
-
-        for pid in assigned:
-            name = _safe_dirname(people[pid]["name"])
-            folder_map.setdefault(name, []).append(photo["filename"])
-
-        if has_unknown or not assigned:
-            folder_map.setdefault("Unknown", []).append(photo["filename"])
+    folder_map = _build_organization_plan(photos, people)
 
     return {
         "total_photos": len(photos),

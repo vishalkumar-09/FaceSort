@@ -32,10 +32,44 @@ LUCAS_URL = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&
 UNKNOWN_URL = "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800&auto=format&fit=crop&q=80"
 
 
-def _download(url: str) -> bytes:
-    req = urllib.request.Request(url, headers=HEADERS)
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        return resp.read()
+def _get_samples_dir() -> Path:
+    """Find samples directory in dev or bundled desktop mode."""
+    import sys
+    if getattr(sys, "frozen", False):
+        bundle_dir = getattr(sys, "_MEIPASS", Path(sys.executable).parent)
+        candidates = [
+            Path(bundle_dir) / "backend" / "samples",
+            Path(bundle_dir) / "samples",
+            Path(sys.executable).parent / "_internal" / "backend" / "samples",
+            Path(sys.executable).parent / "_internal" / "samples",
+        ]
+        for c in candidates:
+            if c.exists():
+                return c
+    return settings.BASE_DIR / "samples"
+
+
+def _load_or_download(sample_name: str, url: str) -> bytes:
+    """Load sample image from local bundled samples first, or download as fallback."""
+    samples_dir = _get_samples_dir()
+    local_path = samples_dir / f"{sample_name}.jpg"
+    if local_path.is_file():
+        try:
+            return local_path.read_bytes()
+        except Exception:
+            pass
+
+    try:
+        req = urllib.request.Request(url, headers=HEADERS)
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            return resp.read()
+    except Exception as e:
+        print(f"[FaceSort] Could not download {sample_name} from {url}: {e}")
+        # Generate an ultra-simple fallback portrait if all else fails
+        img = Image.new("RGB", (400, 400), color=(70, 80, 120))
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG")
+        return buf.getvalue()
 
 
 @router.post("/seed")
@@ -44,10 +78,10 @@ async def seed_sample_data():
     settings.UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
     settings.FACES_DIR.mkdir(parents=True, exist_ok=True)
 
-    # 1. Download base images
-    sophia_bytes = _download(SOPHIA_URL)
-    lucas_bytes = _download(LUCAS_URL)
-    unknown_bytes = _download(UNKNOWN_URL)
+    # 1. Load sample base images (offline first!)
+    sophia_bytes = _load_or_download("sophia", SOPHIA_URL)
+    lucas_bytes = _load_or_download("lucas", LUCAS_URL)
+    unknown_bytes = _load_or_download("group", UNKNOWN_URL)
 
     sophia_img = load_image_from_bytes(sophia_bytes)
     lucas_img = load_image_from_bytes(lucas_bytes)

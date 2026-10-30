@@ -283,8 +283,10 @@ export default function OrganizePage() {
                     </h3>
                   </div>
                   <p className="text-xs text-slate-600 dark:text-slate-300">
-                    Registered people: <strong>{registeredPeopleCount}</strong>. You can
-                    organize your current photos immediately or drop new ones below.
+                    Registered people: <strong>{registeredPeopleCount}</strong>.{" "}
+                    {registeredPeopleCount === 0
+                      ? "Photos will be automatically clustered by recurring faces (Person 1, Person 2...)."
+                      : "Photos will be sorted into person-named folders."}
                   </p>
                 </div>
 

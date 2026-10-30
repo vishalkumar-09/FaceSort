@@ -30,14 +30,31 @@ SFACE_URL = (
 
 def ensure_models() -> tuple[Path, Path]:
     """Ensure ONNX models for YuNet and SFace are present on disk."""
-    settings.MODELS_DIR.mkdir(parents=True, exist_ok=True)
-
     yunet_path = settings.YUNET_MODEL
+    sface_path = settings.SFACE_MODEL
+
+    # If models already exist at resolved paths, return them
+    if yunet_path.exists() and sface_path.exists():
+        return yunet_path, sface_path
+
+    # If models need to be downloaded, ensure we write to a writable directory
+    target_dir = settings.MODELS_DIR
+    try:
+        target_dir.mkdir(parents=True, exist_ok=True)
+        # Test writability
+        test_file = target_dir / ".write_test"
+        test_file.touch()
+        test_file.unlink()
+    except (PermissionError, OSError):
+        target_dir = settings.STORAGE_DIR / "models"
+        target_dir.mkdir(parents=True, exist_ok=True)
+        yunet_path = target_dir / "face_detection_yunet.onnx"
+        sface_path = target_dir / "face_recognition_sface.onnx"
+
     if not yunet_path.exists():
         print(f"[FaceSort] Downloading YuNet detector to {yunet_path}...")
         urllib.request.urlretrieve(YUNET_URL, str(yunet_path))
 
-    sface_path = settings.SFACE_MODEL
     if not sface_path.exists():
         print(f"[FaceSort] Downloading SFace recognizer to {sface_path}...")
         urllib.request.urlretrieve(SFACE_URL, str(sface_path))
@@ -187,3 +204,73 @@ def find_best_match(
             best_id = person_id
 
     return best_id, best_conf
+
+
+def cluster_faces(
+    items: list[dict],
+    threshold: float | None = None,
+) -> list[dict]:
+    """
+    Cluster face items by cosine similarity without needing predefined person profiles.
+    Each item in `items` should have an 'encoding' key (list or np.ndarray of floats).
+
+    Returns a list of clusters:
+      [
+        {
+          "cluster_id": 1,
+          "name": "Person 1",
+          "items": [item, ...],
+          "center": np.ndarray (128-d)
+        },
+        ...
+      ]
+    Single-photo outliers can be identified by len(cluster["items"]) == 1.
+    """
+    if not items:
+        return []
+
+    threshold = threshold if threshold is not None else settings.MATCH_THRESHOLD
+    clusters: list[dict] = []
+
+    for item in items:
+        enc = item.get("encoding")
+        if enc is None:
+            continue
+
+        vec = np.array(enc, dtype=np.float32).flatten()
+        norm = np.linalg.norm(vec)
+        if norm == 0:
+            continue
+        vec_norm = vec / norm
+
+        assigned = False
+        for c in clusters:
+            sim = float(np.dot(c["center"], vec_norm))
+            if sim >= threshold:
+                c["items"].append(item)
+                # Re-compute running normalized centroid
+                all_vecs = np.array([np.array(it["encoding"], dtype=np.float32).flatten() for it in c["items"]])
+                centroid = np.mean(all_vecs, axis=0)
+                c_norm = np.linalg.norm(centroid)
+                if c_norm > 0:
+                    c["center"] = centroid / c_norm
+                assigned = True
+                break
+
+        if not assigned:
+            clusters.append({
+                "cluster_id": len(clusters) + 1,
+                "name": f"Person {len(clusters) + 1}",
+                "items": [item],
+                "center": vec_norm,
+            })
+
+    # Sort clusters: largest groups first
+    clusters.sort(key=lambda c: len(c["items"]), reverse=True)
+    # Re-number names in order of frequency
+    for i, c in enumerate(clusters, start=1):
+        c["cluster_id"] = i
+        c["name"] = f"Person {i}"
+
+    return clusters
+

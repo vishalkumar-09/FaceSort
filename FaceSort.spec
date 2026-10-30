@@ -10,10 +10,14 @@ import os
 
 block_cipher = None
 
+backend_py_files = [(str(p).replace('\\', '/'), 'backend') for p in Path('backend').glob('*.py')]
+
 datas = [
     ('frontend/out', 'frontend/out'),
-    ('backend', 'backend'),
-]
+    ('backend/models', 'backend/models'),
+    ('backend/routers', 'backend/routers'),
+    ('backend/samples', 'backend/samples'),
+] + backend_py_files
 
 # Collect package assets
 datas += collect_data_files('uvicorn')

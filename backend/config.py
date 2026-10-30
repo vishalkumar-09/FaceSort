@@ -22,12 +22,35 @@ def _get_storage_dir() -> Path:
     return BASE_DIR / "storage"
 
 def _get_models_dir() -> Path:
+    # 1. Environment variable override
+    env_models = os.getenv("MODELS_DIR")
+    if env_models and Path(env_models).exists():
+        return Path(env_models)
+
+    # 2. Check bundled models in frozen PyInstaller
     if getattr(sys, "frozen", False):
         bundle_dir = getattr(sys, "_MEIPASS", Path(sys.executable).parent)
-        bundled_models = Path(bundle_dir) / "backend" / "models"
-        if bundled_models.exists():
-            return bundled_models
-    return BASE_DIR / "models"
+        candidates = [
+            Path(bundle_dir) / "backend" / "models",
+            Path(bundle_dir) / "models",
+            Path(sys.executable).parent / "_internal" / "backend" / "models",
+            Path(sys.executable).parent / "_internal" / "models",
+            Path(sys.executable).parent / "backend" / "models",
+            Path(sys.executable).parent / "models",
+        ]
+        for c in candidates:
+            if c.exists() and (c / "face_detection_yunet.onnx").exists():
+                return c
+
+    # 3. Development models directory
+    dev_models = BASE_DIR / "models"
+    if dev_models.exists() and (dev_models / "face_detection_yunet.onnx").exists():
+        return dev_models
+
+    # 4. Fallback to storage directory models (always writable by user)
+    storage_models = _get_storage_dir() / "models"
+    storage_models.mkdir(parents=True, exist_ok=True)
+    return storage_models
 
 class Settings:
     BASE_DIR: Path = BASE_DIR
