@@ -165,7 +165,7 @@ flowchart TD
 ## 🚀 Windows Installer (Quick Start)
 
 You don't need Python, Node.js, or Git installed to use FaceSort on Windows.
-
+It's Simple to install and run in your System.
 1. **Download the Installer**:
    👉 [**Download FaceSort-Setup-v1.0.0.exe (251 MB)**](https://github.com/vishalkumar-09/FaceSort/releases/download/v1.0.0/FaceSort-Setup-v1.0.0.exe) from GitHub Releases.
 2. **Run Setup**:
